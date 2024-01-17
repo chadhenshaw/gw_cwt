@@ -5,7 +5,7 @@ from pycbc.catalog import Catalog
 from pycbc.catalog import Merger
 from pprint import pprint
 from pycbc.types.timeseries import *
-import gw_cwt
+from . import gw_cwt
 
 os.environ['LAL_DATA_PATH'] = '/scratch/lalsimulation'
 
