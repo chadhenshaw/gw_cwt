@@ -290,6 +290,7 @@ def run_cwt(h5file, events=None, detectors=['H1','L1','V1'], label=None, Q=8.0, 
 # fig_width in inches
 # label can be used to sort by a certain parameter, for example if you want to sort by Qs specify the Q value
 # of the parameter by calling label 'Q[num]' ex: 'Q6'
+# if label not specified, this code will make plots for all labels stored for specified events and detectors.
 def plot_cwt(h5file, events_to_plot=None, label=None, detectors_to_plot=['H1','L1','V1'], savefig=True, savefigpath='', freq_to_plot=(10, 300), plot_domain=(-0.5, 0.2), fig_width=8.0):
     existed = []
     if not label:
@@ -305,7 +306,7 @@ def plot_cwt(h5file, events_to_plot=None, label=None, detectors_to_plot=['H1','L
             if detector not in detectors_to_plot:
                 continue
             for param in f[event]['cwt_result'][detector].keys():
-                if (label and param != label) or ('default' in param):
+                if label and param != label:
                     continue
                 if savefig:
                     if label:
