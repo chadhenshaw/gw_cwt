@@ -207,11 +207,10 @@ def list_events(h5file):
 
 # cwt - to run it
 # takes in an h5py file path for the event, returned by mkh5() function, and parameters used for build_cwt_dev.
-# TODO add better documentation
 # returns a dictionary mapping each event to a list of tuples for each detector with the detector name, data with CWT run 
 # on it, the specific slice of data on which CWT was run, the times corresponding to the data in a TimeSeries object, the 
 # top of the scale range, and a tuple with Q and df.
-def run_it(h5file, events=None, detectors=None, changed_parameter=None, Q=8.0, chirp_rate=0.0, f_range=(10.0, 500.0), freq_spacing='Log', n_conv=400, df=None, da=None, f_list=None, Norm=True):
+def run_it(h5file, events=None, detectors=None, label=None, Q=8.0, chirp_rate=0.0, f_range=(10.0, 500.0), freq_spacing='Log', n_conv=400, df=None, da=None, f_list=None, Norm=True):
     print('Starting CWT')
     returnDict = {}
     file = h5py.File(h5file, 'r')
@@ -231,7 +230,7 @@ def run_it(h5file, events=None, detectors=None, changed_parameter=None, Q=8.0, c
         for ifo in file[event]['strain_info'].keys():
             if detectors and ifo not in detectors:
                 continue
-            if ('cwt_result' in file[event].keys()) and (ifo in file[event]['cwt_result'].keys()) and (changed_parameter in file[event]['cwt_result'][ifo].keys()):
+            if ('cwt_result' in file[event].keys()) and (ifo in file[event]['cwt_result'].keys()) and (label in file[event]['cwt_result'][ifo].keys()):
                 print(f'Skipping {event} at detector {ifo} - event already contains CWT result.')
             print(f'running CWT on {name}, detector {ifo}...')
             signal = np.array(file[event]['strain_info'][ifo]['sliced']['data'])
@@ -251,14 +250,14 @@ def run_it(h5file, events=None, detectors=None, changed_parameter=None, Q=8.0, c
     return returnDict
 
 # save map, frequencies, scales
-def cwt_savedata(returnDict, h5file, changed_parameter):
+def cwt_savedata(returnDict, h5file, label):
     file = h5py.File(h5file, 'a')
     exist = True
     for event in returnDict:
         for tup in returnDict[event]['cwt_result']:
             result = tup[1]
             detector = tup[0]
-            path = f'{event}/cwt_result/{detector}/{changed_parameter}'
+            path = f'{event}/cwt_result/{detector}/{label}'
             try:
                 file.create_dataset(f'{path}/map', data = result['map'])
                 file.create_dataset(f'{path}/frequencies', data = result['frequencies'])
@@ -271,31 +270,30 @@ def cwt_savedata(returnDict, h5file, changed_parameter):
         print('No events were found.')
         return False
     if exist:
-        print(f'CWT results already exist for all events using changed parameter(s) {changed_parameter}. No changes were made.')
+        print(f'CWT results already exist for all events using changed parameter(s) {label}. No changes were made.')
     else:
         return True
     
 # Runs cwt and saves to an h5py file.
-# changed_parameter is desired parameter for organization. Specify param and value. Ex: 'Q6'
-def run_cwt(h5file, events=None, detectors=['H1','L1','V1'], changed_parameter=None, Q=8.0, chirp_rate=0.0, path='', event=None, f_range=(10.0, 500.0), freq_spacing='Log', n_conv=400, df=None, da=None, linear_freq=False, f_list=None, Norm=True):
-    if not changed_parameter:
-        changed_parameter = f'Q{Q}_default'
+# label is desired parameter for organization. Specify param and value. Ex: 'Q6'
+def run_cwt(h5file, events=None, detectors=['H1','L1','V1'], label=None, Q=8.0, chirp_rate=0.0, path='', event=None, f_range=(10.0, 500.0), freq_spacing='Log', n_conv=400, df=None, da=None, linear_freq=False, f_list=None, Norm=True):
+    if not label:
+        label = f'Q{Q}_default'
     if events and type(events) != list:
         events = [events]
-    cwt_dict = run_it(h5file, events, detectors, changed_parameter, Q, chirp_rate, f_range, freq_spacing, n_conv, df, da, f_list, Norm)
-    a = cwt_savedata(cwt_dict, h5file, changed_parameter)
+    cwt_dict = run_it(h5file, events, detectors, label, Q, chirp_rate, f_range, freq_spacing, n_conv, df, da, f_list, Norm)
+    a = cwt_savedata(cwt_dict, h5file, label)
     if a:
         print(f'Done! Data saved to {h5file}')
 
-
 # function to plot CWT results
 # fig_width in inches
-# changed_parameter can be used to sort by a certain parameter, for example if you want to sort by Qs specify the Q value
-# of the parameter by calling changed_parameter 'Q[num]' ex: 'Q6'
-def plot_cwt(h5file, events_to_plot=None, changed_parameter=None, detectors_to_plot=['H1','L1','V1'], savefig=True, savefigpath='', freq_to_plot=(10, 300), plot_domain=(-0.5, 0.2), fig_width=8.0):
+# label can be used to sort by a certain parameter, for example if you want to sort by Qs specify the Q value
+# of the parameter by calling label 'Q[num]' ex: 'Q6'
+def plot_cwt(h5file, events_to_plot=None, label=None, detectors_to_plot=['H1','L1','V1'], savefig=True, savefigpath='', freq_to_plot=(10, 300), plot_domain=(-0.5, 0.2), fig_width=8.0):
     existed = []
-    if not changed_parameter:
-        print('No subfolder specified. Plots will be created for all default CWT results existing for these events. If desired, you may specify a changed_parameter to tell the code which results to use.')
+    if not label:
+        print('No subfolder specified. Plots will be created for all default CWT results existing for these events. If desired, you may specify a label to tell the code which results to use.')
     f = h5py.File(h5file, 'r')
     if savefigpath:
         if savefigpath[-1] != "/":
@@ -307,15 +305,15 @@ def plot_cwt(h5file, events_to_plot=None, changed_parameter=None, detectors_to_p
             if detector not in detectors_to_plot:
                 continue
             for param in f[event]['cwt_result'][detector].keys():
-                if (changed_parameter and param != changed_parameter) or ('default' in param):
+                if (label and param != label) or ('default' in param):
                     continue
                 if savefig:
-                    if changed_parameter:
-                        mkdir(savefigpath + event + "/" + detector + "/" + changed_parameter + "/")
-                        figpath = f'{savefigpath}{event}/{detector}/{changed_parameter}/{event}_{detector}{changed_parameter}.png'
+                    if label:
+                        mkdir(savefigpath + event + "/" + detector + "/" + label + "/")
+                        figpath = f'{savefigpath}{event}/{detector}/{label}/{event}_{detector}{label}.png'
                         if os.path.exists(figpath):
-                            print(f'{event} at {detector} already exists in this directory at specified folder {changed_parameter}. Skipping plot.')
-                            existed.append(f'{event}_{detector}{changed_parameter}')
+                            print(f'{event} at {detector} already exists in this directory at specified folder {label}. Skipping plot.')
+                            existed.append(f'{event}_{detector}{label}')
                             continue
                     else:
                         mkdir(savefigpath + event + "/" + detector + "/")
@@ -354,7 +352,7 @@ def plot_cwt(h5file, events_to_plot=None, changed_parameter=None, detectors_to_p
                 clb.ax.set_title(r'$T\left(t, f\right)$', fontsize=10, pad=5)
                 clb.ax.tick_params(labelsize=10)
                 if savefig:
-                    if changed_parameter:
+                    if label:
                         plt.savefig(figpath, format='png', bbox_inches='tight')
                         print(f'Saved figure for merger {event} at {detector}.')
                     else:
