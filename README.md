@@ -1,5 +1,5 @@
 # gw_cwt
-This package is used to create time-frequency maps using the continuous wavelet transform, and is tuned for analysis of gravitational wave data.
+This package is used to create time-frequency maps using the continuous wavelet transform, and is tuned for analysis of gravitational wave data. If used for analysis, please cite the accompanying paper: https://arxiv.org/abs/2402.16533.
 
 ## Installation
 
